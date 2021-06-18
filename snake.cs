@@ -38,6 +38,7 @@ interface IView {
 	void Result(int? score);
 }
 
+/// One element in the board,
 class Wall {
 	public int BeginX, BeginY, EndX, EndY;
 
@@ -52,39 +53,45 @@ class Wall {
 
 	/// Return true if one of this coordonate is over the wall.
 	public bool over(int x, int y) {
-		return BeginX <= x && x < EndX &&
-		       BeginY <= y && y < EndY;
+		return this.BeginX <= x && x < this.EndX &&
+		       this.BeginY <= y && y < this.EndY;
 	}
 }
 
-class Board {
+class BoardDimension {
 	public int Width = 20;
 	public int Height = 20;
+}
 
+class Board {
 	/// The walls: the snake and the candys must not be over.
 	public List<Wall> Walls = new();
 
-	/// Split the Board in four zone at each coin with a wross.
-	public Board CrossWall() {
+	public BoardDimension dimension {
+		get;
+		private set;
+	}
+
+	/// Split the Board in four zone at each coin with a cross.
+	public Board(BoardDimension pdimension) {
+		this.dimension = pdimension;
 		int m;
 
-		m = Width / 2;
+		m = this.dimension.Width / 2;
 		Walls.Add(new Wall {
 			BeginX = m,
 			EndX = m + 1,
 			BeginY = 0,
-			EndY = Height,
+			EndY = this.dimension.Height,
 		});
 
-		m = Height / 2;
+		m = this.dimension.Height / 2;
 		Walls.Add(new Wall {
 			BeginX = 0,
-			EndX = Width,
+			EndX = this.dimension.Width,
 			BeginY = m,
 			EndY = m + 1,
 		});
-
-		return this;
 	}
 
 	/// Return true if the coord is over a wall.
@@ -202,22 +209,37 @@ class Snake {
 		for(int i = body.Count - 1; i > 0; i--) {
 			body[i] = body[i - 1];
 		}
+		(var X, var Y) = body[0];
 		switch(direction) {
 		case Direction.Left:
-			body[0] = (body[0].X == 0 ? board.Width : body[0].X - 1, body[0].Y);
+			X--;
+			if(X < 0) {
+				X = board.dimension.Width - 1;
+			}
 			break;
 		case Direction.Right:
-			body[0] = (body[0].X == board.Width ? 0 : body[0].X + 1, body[0].Y);
+			X++;
+			if(X >= board.dimension.Width) {
+				X = 0;
+			}
 			break;
 		case Direction.Up:
-			body[0] = (body[0].X, body[0].Y == 0 ? board.Height : body[0].Y - 1);
+			Y--;
+			if(Y < 0) {
+				Y = board.dimension.Height - 1;
+			}
 			break;
 		case Direction.Down:
-			body[0] = (body[0].X, body[0].Y == board.Height ? 0 : body[0].Y + 1);
+			Y++;
+			if(Y >= board.dimension.Height) {
+				Y = 0;
+			}
 			break;
 		}
+		body[0] = (X, Y);
+
 		// Bump a wall
-		if(board.OnWall(body[0].X, body[0].Y)) {
+		if(board.OnWall(X, Y)) {
 			return true;
 		}
 		// Eat candy.
@@ -240,40 +262,45 @@ class Snake {
 	}
 }
 
-/// One candy it can be active with coord or not. At each round, call
-// Regenerate method to move or regenerate it according to the expiration.
+/// One candy it can be active with coord or not. At each round, call the
+/// Regenerate method to move or regenerate it according to the expiration.
 class Candy {
 	/// The coordonate, can be active or not.
 	public (int X, int Y) ? Coord = null;
-	Board board;
+	/// The board attached to this candy. used for the dimension and for
+	/// the wall
+	private Board board;
 
-	/// The duration before move or regenration.
-	DateTime expiration;
+	/// The duration before move or regeneration.
+	private DateTime expiration;
 	static int LifeRand = 5_000_000_0;
 	static int LifeMin = 3_000_000_0;
 	private Random rand;
 
 	/// Init a candy, it will after a random duration.
 	public Candy(Board b) {
-		board = b;
-		rand = new Random();
-		Remove();
+		this.board = b;
+		this.rand = new Random();
+		this.Remove();
 	}
 
 	/// Remove the candy and set a random duration before the regeneration.
 	public void Remove() {
-		Coord = null;
-		expiration = DateTime.Now +
-		             new TimeSpan(rand.Next(LifeRand + LifeMin));
+		this.Coord = null;
+		this.expiration = DateTime.Now +
+		                  new TimeSpan(this.rand.Next(LifeRand + LifeMin));
 	}
 
 	/// If the expiration duration is over, move the candy (or regenerate it).
 	public void Regenerate() {
-		if(DateTime.Now > expiration) {
-			expiration = DateTime.Now +
-			             new TimeSpan(rand.Next(LifeRand) + LifeMin);
+		if(DateTime.Now > this.expiration) {
+			this.expiration = DateTime.Now +
+			                  new TimeSpan(this.rand.Next(LifeRand) + LifeMin);
 			do {
-				Coord = (rand.Next(board.Width), rand.Next(board.Height));
+				this.Coord = (
+					this.rand.Next(this.board.dimension.Width),
+					this.rand.Next(this.board.dimension.Height)
+					);
 			} while(board.OnWall(Coord.Value.X, Coord.Value.Y));
 		}
 	}
