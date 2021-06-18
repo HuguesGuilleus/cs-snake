@@ -2,9 +2,14 @@
 
 class Program {
 	static void Main(string[] args) {
-		new Board {
-			Width =  Console.WindowWidth,
-			Height = Console.WindowHeight,
-		}.CrossWall().Play(new ConsoleView(), new ConsoleControl());
+		var dimension = new BoardDimension {
+			Width = Console.WindowWidth,
+			Height = Console.WindowHeight - 1,
+		};
+
+		new Board(dimension).Play(
+			new ConsoleArrayView(dimension),
+			new ConsoleControl()
+			);
 	}
 }
